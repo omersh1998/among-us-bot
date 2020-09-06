@@ -1,13 +1,24 @@
 import asyncio
-
+import configparser
 import discord
+import json
 from aio_timers import Timer
 
-TOKEN = 'NzUwNzc2NjA2NjE5OTkyMDk2.X0_dMw.1uSAnxF-fOkQ6fFhOIR5mpovpTs'
-AUTHOR_ID = 272355597524140034
-END_TIMEOUT = 5
-POLL_TIMOUT = 1
-MINUTES = 5
+config = configparser.ConfigParser()
+config.read('config.cfg')
+
+TOKEN = config.get('discord_values', 'TOKEN')
+AUTHOR_IDS = config.get('discord_values', 'AUTHOR_IDS').split(',')
+END_TIMEOUT = config.getfloat('config', 'END_TIMEOUT')
+POLL_TIMOUT = config.getfloat('config', 'POLL_TIMOUT')
+MINUTES = config.getfloat('config', 'MINUTES')
+
+
+def print_mute_unmute(is_mute, member):
+    if is_mute:
+        print(f"{member} is being muted")
+    else:
+        print(f"{member} is being unmuted")
 
 
 class AmongUsBot(discord.Client):
@@ -30,9 +41,10 @@ class AmongUsBot(discord.Client):
 
         :param message: Message sent in the discord server
         """
-        if message.content.startswith('!') and message.author.id == AUTHOR_ID:
+        print(f"message recieved - {message.content}")
+        if message.content.startswith('!') and str(message.author.id) in AUTHOR_IDS:
             command = message.content[1:]
-            await self.commands[command](message.author.voice.channel)
+            await self.commands[command](message.channel)
 
     async def mute(self, channel):
         """
@@ -73,11 +85,18 @@ class AmongUsBot(discord.Client):
         Regulary checks whether everyone in the vc should be muted
         :param channel: The voice channel the author is in
         """
-        self.end_timer = Timer(END_TIMEOUT * MINUTES, self.unmute, callback_args=(channel,))
+        self.end_timer = Timer(END_TIMEOUT * MINUTES,
+                               self.unmute, callback_args=(channel,))
 
     async def change_vc_permissions(self, channel, mute=True):
+        print("---------------------------------")
         for member in channel.members:
-            await member.edit(mute=mute)
+            try:
+                await member.edit(mute=mute)
+                print_mute_unmute(mute, member)
+            except discord.errors.HTTPException:
+                print(f"{member} is not connected to VC")
+        print("---------------------------------")
 
     async def on_group_join(self, channel, user):
         print(f'channel:{channel}, user: {user}')
