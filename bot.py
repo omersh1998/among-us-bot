@@ -1,16 +1,25 @@
 import asyncio
 import configparser
 import discord
+import json
 from aio_timers import Timer
 
 config = configparser.ConfigParser()
 config.read('config.cfg')
 
 TOKEN = config.get('discord_values', 'TOKEN')
-AUTHOR_ID = config.get('discord_values', 'AUTHOR_ID')
-END_TIMEOUT = config.get('config', 'END_TIMEOUT')
-POLL_TIMOUT = config.get('config', 'POLL_TIMOUT')
-MINUTES = config.get('config', 'MINUTES')
+AUTHOR_IDS = config.get('discord_values', 'AUTHOR_IDS').split(',')
+END_TIMEOUT = config.getfloat('config', 'END_TIMEOUT')
+POLL_TIMOUT = config.getfloat('config', 'POLL_TIMOUT')
+MINUTES = config.getfloat('config', 'MINUTES')
+
+
+def print_mute_unmute(is_mute, member):
+    if is_mute:
+        print(f"{member} is being muted")
+    else:
+        print(f"{member} is being unmuted")
+
 
 class AmongUsBot(discord.Client):
     async def on_ready(self):
@@ -33,7 +42,7 @@ class AmongUsBot(discord.Client):
         :param message: Message sent in the discord server
         """
         print(f"message recieved - {message.content}")
-        if message.content.startswith('!') and str(message.author.id) == AUTHOR_ID:
+        if message.content.startswith('!') and str(message.author.id) in AUTHOR_IDS:
             command = message.content[1:]
             await self.commands[command](message.channel)
 
@@ -80,9 +89,14 @@ class AmongUsBot(discord.Client):
                                self.unmute, callback_args=(channel,))
 
     async def change_vc_permissions(self, channel, mute=True):
+        print("---------------------------------")
         for member in channel.members:
-            print(member)
-            await member.edit(mute=mute)
+            try:
+                await member.edit(mute=mute)
+                print_mute_unmute(mute, member)
+            except discord.errors.HTTPException:
+                print(f"{member} is not connected to VC")
+        print("---------------------------------")
 
     async def on_group_join(self, channel, user):
         print(f'channel:{channel}, user: {user}')
