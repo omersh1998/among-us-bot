@@ -1,14 +1,16 @@
 import asyncio
-
+import configparser
 import discord
 from aio_timers import Timer
 
-TOKEN = 'NzUwNzc2NjA2NjE5OTkyMDk2.X0_dMw.1uSAnxF-fOkQ6fFhOIR5mpovpTs'
-AUTHOR_ID = 272355597524140034
-END_TIMEOUT = 5
-POLL_TIMOUT = 1
-MINUTES = 5
+config = configparser.ConfigParser()
+config.read('config.cfg')
 
+TOKEN = config.get('discord_values', 'TOKEN')
+AUTHOR_ID = config.get('discord_values', 'AUTHOR_ID')
+END_TIMEOUT = config.get('config', 'END_TIMEOUT')
+POLL_TIMOUT = config.get('config', 'POLL_TIMOUT')
+MINUTES = config.get('config', 'MINUTES')
 
 class AmongUsBot(discord.Client):
     async def on_ready(self):
@@ -30,9 +32,10 @@ class AmongUsBot(discord.Client):
 
         :param message: Message sent in the discord server
         """
-        if message.content.startswith('!') and message.author.id == AUTHOR_ID:
+        print(f"message recieved - {message.content}")
+        if message.content.startswith('!') and str(message.author.id) == AUTHOR_ID:
             command = message.content[1:]
-            await self.commands[command](message.author.voice.channel)
+            await self.commands[command](message.channel)
 
     async def mute(self, channel):
         """
@@ -73,10 +76,12 @@ class AmongUsBot(discord.Client):
         Regulary checks whether everyone in the vc should be muted
         :param channel: The voice channel the author is in
         """
-        self.end_timer = Timer(END_TIMEOUT * MINUTES, self.unmute, callback_args=(channel,))
+        self.end_timer = Timer(END_TIMEOUT * MINUTES,
+                               self.unmute, callback_args=(channel,))
 
     async def change_vc_permissions(self, channel, mute=True):
         for member in channel.members:
+            print(member)
             await member.edit(mute=mute)
 
     async def on_group_join(self, channel, user):
